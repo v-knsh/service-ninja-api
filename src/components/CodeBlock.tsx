@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, Copy } from 'lucide-react';
 
 interface CodeBlockProps {
@@ -17,6 +17,21 @@ const CodeBlock = ({ code, language = 'json', title }: CodeBlockProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const formatCode = (code: string): string => {
+    try {
+      // If it's JSON, try to pretty-print it
+      if (language === 'json' && typeof code === 'string') {
+        return JSON.stringify(JSON.parse(code), null, 2);
+      }
+    } catch (e) {
+      // If parsing fails, return the original code
+      console.error("Error formatting code:", e);
+    }
+    return code;
+  };
+
+  const formattedCode = formatCode(code);
+
   return (
     <div className="relative rounded-lg overflow-hidden my-4 bg-secondary">
       {title && (
@@ -25,11 +40,12 @@ const CodeBlock = ({ code, language = 'json', title }: CodeBlockProps) => {
         </div>
       )}
       <pre className="p-4 text-sm font-mono overflow-x-auto">
-        <code className="language-json">{code}</code>
+        <code className={`language-${language}`}>{formattedCode}</code>
       </pre>
       <button 
         className="absolute top-3 right-3 p-2 rounded-md bg-muted/80 hover:bg-muted transition-colors"
         onClick={handleCopy}
+        aria-label={copied ? "Copied" : "Copy to clipboard"}
       >
         {copied ? <Check size={14} /> : <Copy size={14} />}
       </button>

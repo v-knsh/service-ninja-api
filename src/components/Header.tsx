@@ -1,9 +1,15 @@
 
 import { useState, useEffect } from 'react';
-import { baseUrl } from '../lib/data';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 const Header = () => {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -14,49 +20,145 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const closeMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
   return (
     <header 
-      className={`sticky top-0 z-50 transition-all-slow py-6 px-8 ${
-        scrolled ? 'glass-effect' : 'bg-transparent'
+      className={`sticky top-0 z-50 transition-all-slow py-4 px-8 ${
+        scrolled ? 'glass-effect shadow-sm' : 'bg-transparent'
       }`}
     >
       <div className="container mx-auto flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+        <Link to="/" className="flex items-center space-x-2">
           <div 
-            className={`text-2xl font-bold bg-clip-text ${
+            className={`text-xl font-bold bg-clip-text ${
               scrolled ? 'text-primary' : 'text-foreground'
             } transition-all-slow`}
           >
-            Electronics Repair API
+            Electronics Repair
+          </div>
+        </Link>
+        
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center space-x-6">
+          <nav className="flex space-x-6">
+            <Link to="/services" className="text-sm font-medium hover:text-primary transition-colors">
+              Services
+            </Link>
+            {isAuthenticated && (
+              <>
+                <Link to="/repairs" className="text-sm font-medium hover:text-primary transition-colors">
+                  Repairs
+                </Link>
+                <Link to="/appointments" className="text-sm font-medium hover:text-primary transition-colors">
+                  Appointments
+                </Link>
+                <Link to="/payments" className="text-sm font-medium hover:text-primary transition-colors">
+                  Payments
+                </Link>
+                <Link to="/reviews" className="text-sm font-medium hover:text-primary transition-colors">
+                  Reviews
+                </Link>
+              </>
+            )}
+          </nav>
+          
+          <div className="flex items-center space-x-4">
+            {isAuthenticated ? (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/dashboard" className="flex items-center space-x-1">
+                    <User size={16} />
+                    <span>Dashboard</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" onClick={logout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/login">Login</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/register">Register</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
         
-        <div className="flex space-x-6 items-center">
-          <div className="hidden md:flex space-x-6">
-            <a href="#authentication" className="text-sm font-medium hover:text-primary transition-colors">
-              Authentication
-            </a>
-            <a href="#services" className="text-sm font-medium hover:text-primary transition-colors">
-              Services
-            </a>
-            <a href="#repairs" className="text-sm font-medium hover:text-primary transition-colors">
-              Repairs
-            </a>
-            <a href="#payments" className="text-sm font-medium hover:text-primary transition-colors">
-              Payments
-            </a>
-          </div>
-          <div 
-            className={`px-4 py-2 rounded-full text-sm ${
-              scrolled 
-                ? 'bg-primary text-white' 
-                : 'bg-secondary text-secondary-foreground'
-            } transition-all-slow hover:opacity-90`}
-          >
-            {baseUrl}
-          </div>
+        {/* Mobile Menu Button */}
+        <div className="md:hidden">
+          <Button variant="ghost" size="sm" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </Button>
         </div>
       </div>
+      
+      {/* Mobile Navigation */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-background pt-16 px-4 flex flex-col md:hidden animate-in slide-in-from-top-10">
+          <nav className="flex flex-col space-y-6 pt-8">
+            <Link to="/" className="text-lg font-medium" onClick={closeMenu}>
+              Home
+            </Link>
+            <Link to="/services" className="text-lg font-medium" onClick={closeMenu}>
+              Services
+            </Link>
+            {isAuthenticated && (
+              <>
+                <Link to="/repairs" className="text-lg font-medium" onClick={closeMenu}>
+                  Repairs
+                </Link>
+                <Link to="/appointments" className="text-lg font-medium" onClick={closeMenu}>
+                  Appointments
+                </Link>
+                <Link to="/payments" className="text-lg font-medium" onClick={closeMenu}>
+                  Payments
+                </Link>
+                <Link to="/reviews" className="text-lg font-medium" onClick={closeMenu}>
+                  Reviews
+                </Link>
+              </>
+            )}
+          </nav>
+          
+          <div className="mt-auto pb-10 flex flex-col space-y-4">
+            {isAuthenticated ? (
+              <>
+                <Button variant="outline" size="lg" asChild className="w-full">
+                  <Link to="/dashboard" onClick={closeMenu}>
+                    Dashboard
+                  </Link>
+                </Button>
+                <Button variant="default" size="lg" className="w-full" onClick={() => {
+                  logout();
+                  closeMenu();
+                }}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" size="lg" asChild className="w-full">
+                  <Link to="/login" onClick={closeMenu}>
+                    Login
+                  </Link>
+                </Button>
+                <Button variant="default" size="lg" asChild className="w-full">
+                  <Link to="/register" onClick={closeMenu}>
+                    Register
+                  </Link>
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 };
