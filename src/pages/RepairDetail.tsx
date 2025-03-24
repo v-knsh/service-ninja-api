@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Radio, RadioGroup } from '@/components/ui/radio-group';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Loader2, AlertCircle, CheckCircle, Clock, Tool, Package } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Clock, Wrench, Package } from 'lucide-react';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -33,7 +34,7 @@ type PaymentFormValues = z.infer<typeof paymentSchema>;
 const statusIcons = {
   pending: Clock,
   diagnosed: AlertCircle,
-  in_progress: Tool,
+  in_progress: Wrench,
   completed: CheckCircle,
   delivered: Package,
 };
