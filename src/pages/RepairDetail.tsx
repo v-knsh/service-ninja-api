@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -39,13 +38,14 @@ const statusIcons = {
   delivered: Package,
 };
 
-const statusColors = {
-  pending: "bg-yellow-500",
-  diagnosed: "bg-blue-500",
-  in_progress: "bg-purple-500",
-  completed: "bg-green-500",
-  delivered: "bg-gray-500",
-};
+// Map status to badge variants
+const statusToBadgeVariant = {
+  pending: "pending",
+  diagnosed: "diagnosed",
+  in_progress: "inProgress",
+  completed: "completed",
+  delivered: "delivered",
+} as const;
 
 const paymentMethods = [
   { value: 'credit_card', label: 'Credit Card' },
@@ -197,7 +197,7 @@ const RepairDetail = () => {
                     </CardDescription>
                   </div>
                   <Badge 
-                    className={`${statusColors[repair.status]} text-white`}
+                    variant={statusToBadgeVariant[repair.status as keyof typeof statusToBadgeVariant]}
                   >
                     {repair.status.replace('_', ' ').toUpperCase()}
                   </Badge>
