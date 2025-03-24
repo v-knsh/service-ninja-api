@@ -41,13 +41,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for token and user in localStorage
+    // Check for token and user in localStorage with proper null handling
     const storedToken = localStorage.getItem('token');
     const storedUser = localStorage.getItem('user');
     
-    if (storedToken && storedUser) {
+    if (storedToken) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+    }
+    
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        // If there's an error parsing the user, clear the localStorage
+        localStorage.removeItem('user');
+        console.error('Error parsing user from localStorage:', error);
+      }
     }
     
     setIsLoading(false);
