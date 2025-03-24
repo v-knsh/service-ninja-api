@@ -1,6 +1,5 @@
-
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import Header from '@/components/Header';
@@ -9,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Clock, CreditCard, Wrench } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, Clock, CreditCard, Wrench, ArrowRight } from 'lucide-react';
 
 interface Repair {
   _id: string;
@@ -238,15 +238,39 @@ const Dashboard = () => {
                         <p className="text-sm text-muted-foreground mb-2">
                           {repair.description}
                         </p>
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between items-center text-sm">
                           <div className="flex items-center text-muted-foreground">
                             <Clock className="mr-1 h-4 w-4" />
                             <span>{formatDate(repair.createdAt)}</span>
                           </div>
-                          <div className="font-medium">
-                            ${repair.estimatedCost.toFixed(2)}
+                          <div className="flex items-center gap-4">
+                            <div className="font-medium">
+                              ${repair.estimatedCost.toFixed(2)}
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              asChild
+                              className="p-0 h-auto font-medium text-primary hover:text-primary"
+                            >
+                              <Link to={`/repairs/${repair._id}`}>
+                                View Details
+                                <ArrowRight className="ml-1 h-4 w-4" />
+                              </Link>
+                            </Button>
                           </div>
                         </div>
+                        {repair.status === 'completed' && (
+                          <div className="mt-3 flex justify-end">
+                            <Button 
+                              size="sm" 
+                              onClick={() => navigate(`/repairs/${repair._id}`)}
+                            >
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              Process Payment
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
