@@ -1,188 +1,309 @@
 
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiService, Payment, RepairRequest } from '@/services/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CreditCard, AlertCircle, Info, CheckCircle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Link } from 'react-router-dom';
+import { Loader2, Search, CreditCard, DollarSign, Calendar } from 'lucide-react';
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+};
+
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(amount);
+};
+
+const PaymentCard = ({ payment }: { payment: Payment }) => {
+  const repairId = typeof payment.repair === 'string' 
+    ? payment.repair 
+    : payment.repair._id;
+  
+  const repairInfo = typeof payment.repair === 'object' 
+    ? payment.repair 
+    : null;
+
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-6">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="font-semibold text-lg mb-1">
+              Payment #{payment._id.substring(0, 8)}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {formatDate(payment.createdAt)}
+            </p>
+          </div>
+          <Badge 
+            variant={payment.status === 'completed' ? 'default' : 'outline'}
+          >
+            {payment.status.toUpperCase()}
+          </Badge>
+        </div>
+        
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <DollarSign className="h-4 w-4 mr-2 text-muted-foreground" />
+              <span className="text-sm font-medium">Amount</span>
+            </div>
+            <span className="font-semibold">
+              {formatCurrency(payment.amount)}
+            </span>
+          </div>
+          
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <CreditCard className="h-4 w-4 mr-2 text-muted-foreground" />
+              <span className="text-sm font-medium">Method</span>
+            </div>
+            <span className="capitalize">
+              {payment.method.replace('_', ' ')}
+            </span>
+          </div>
+          
+          {payment.transactionId && (
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
+                <span className="text-sm font-medium">Transaction ID</span>
+              </div>
+              <span className="text-sm font-mono">
+                {payment.transactionId}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        <Separator className="my-4" />
+        
+        <div className="flex justify-between items-center">
+          <div className="text-sm">
+            <span className="text-muted-foreground">Repair: </span>
+            {repairInfo ? (
+              <span>{repairInfo.service.name}</span>
+            ) : (
+              <span>#{repairId.substring(0, 8)}</span>
+            )}
+          </div>
+          
+          <Button asChild size="sm" variant="outline">
+            <Link to={`/repairs/${repairId}`}>
+              View Details
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 const Payments = () => {
-  const { isAuthenticated } = useAuth();
-  const navigate = useNavigate();
+  const { token, user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
   
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, navigate]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Fetch all user payments
+  const { 
+    data: payments, 
+    isLoading, 
+    isError 
+  } = useQuery({
+    queryKey: ['payments'],
+    queryFn: () => apiService.getPayments(),
+    enabled: !!token,
+  });
+  
+  // Filter payments based on search query
+  const filteredPayments = payments?.filter(payment => {
+    const paymentId = payment._id;
+    const repairInfo = typeof payment.repair === 'object' 
+      ? payment.repair 
+      : null;
+    
+    const searchString = [
+      paymentId,
+      payment.method,
+      payment.status,
+      repairInfo?.service.name || '',
+      repairInfo?.description || '',
+    ].join(' ').toLowerCase();
+    
+    return searchString.includes(searchQuery.toLowerCase());
+  });
+  
+  // Group payments by status
+  const completedPayments = filteredPayments?.filter(
+    payment => payment.status === 'completed'
+  );
+  
+  const pendingPayments = filteredPayments?.filter(
+    payment => payment.status === 'pending'
+  );
+  
+  const refundedPayments = filteredPayments?.filter(
+    payment => payment.status === 'refunded'
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      <main className="flex-1 container mx-auto px-4 py-12">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold mb-2">Payments</h1>
-          <p className="text-muted-foreground max-w-2xl">
-            Manage payments for your repair services
-          </p>
-        </div>
-        
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Payment Information</CardTitle>
-              <CardDescription>
-                Secure payment methods for your repair services
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <Alert className="bg-amber-50 border-amber-200">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-                <AlertTitle className="text-amber-800">Payment Required After Diagnosis</AlertTitle>
-                <AlertDescription className="text-amber-700">
-                  Our technicians will diagnose your device first and provide you with a detailed quote. 
-                  Payment is required after you approve the repair and it has been completed.
-                </AlertDescription>
-              </Alert>
-              
-              <div>
-                <h3 className="text-lg font-medium mb-4">Payment Methods</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="border p-4 rounded-md flex items-center">
-                    <CreditCard className="h-6 w-6 mr-3 text-primary" />
-                    <span>Credit/Debit Cards</span>
-                  </div>
-                  <div className="border p-4 rounded-md flex items-center">
-                    <svg className="h-6 w-6 mr-3" viewBox="0 0 24 24" fill="none">
-                      <path d="M19 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M19 7V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      <path d="M12 12a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span>Bank Transfer</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">How to Pay</h3>
-                <ol className="space-y-3 list-decimal list-inside pl-2">
-                  <li className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Submit a repair request</span> - Describe your device issue
-                  </li>
-                  <li className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Wait for diagnosis</span> - Our technicians will assess your device
-                  </li>
-                  <li className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Approve the repair quote</span> - Confirm the final price
-                  </li>
-                  <li className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Wait for repair completion</span> - We'll notify you when your device is fixed
-                  </li>
-                  <li className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Make payment</span> - Process payment through your dashboard
-                  </li>
-                  <li className="text-sm text-muted-foreground">
-                    <span className="text-foreground font-medium">Collect your device</span> - Pick up your repaired device
-                  </li>
-                </ol>
-              </div>
-              
-              <Alert>
-                <Info className="h-5 w-5" />
-                <AlertTitle>Process payment on your dashboard</AlertTitle>
-                <AlertDescription>
-                  When your repair is complete, you'll see a "Process Payment" button in your dashboard for the specific repair.
-                </AlertDescription>
-              </Alert>
-              
-              <div className="mt-6">
-                <Button onClick={() => navigate('/dashboard')} className="w-full">
-                  Go to Dashboard
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex-1 container mx-auto p-6">
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row justify-between md:items-center space-y-4 md:space-y-0">
+            <div>
+              <h1 className="text-3xl font-bold">Payment History</h1>
+              <p className="text-muted-foreground">
+                View and manage your payment history
+              </p>
+            </div>
+            
+            <div className="relative w-full md:w-72">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search payments..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Secure Payments</CardTitle>
-              <CardDescription>
-                Your payment information is secure
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start gap-4">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium">Encrypted Transactions</h4>
-                  <p className="text-sm text-muted-foreground">
-                    All payment information is encrypted using industry-standard protocols
-                  </p>
+          <Tabs defaultValue="all">
+            <TabsList className="mb-6">
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsTrigger value="pending">Pending</TabsTrigger>
+              <TabsTrigger value="refunded">Refunded</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="all" className="mt-0">
+              {isLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-4">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium">No Stored Card Details</h4>
-                  <p className="text-sm text-muted-foreground">
-                    We don't store your full credit card information on our servers
-                  </p>
+              ) : isError ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Error</CardTitle>
+                    <CardDescription>
+                      Failed to load payment history. Please try again.
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              ) : filteredPayments && filteredPayments.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredPayments.map((payment) => (
+                    <PaymentCard key={payment._id} payment={payment} />
+                  ))}
                 </div>
-              </div>
-              
-              <div className="flex items-start gap-4">
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-                <div>
-                  <h4 className="font-medium">Transparent Pricing</h4>
-                  <p className="text-sm text-muted-foreground">
-                    No hidden fees or charges - you'll always know what you're paying for
-                  </p>
+              ) : (
+                <Card>
+                  <CardHeader className="text-center">
+                    <CardTitle>No payments found</CardTitle>
+                    <CardDescription>
+                      {searchQuery
+                        ? "No payments match your search criteria"
+                        : "You haven't made any payments yet"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex justify-center">
+                    <Button asChild>
+                      <Link to="/repairs">View Repair Requests</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="completed" className="mt-0">
+              {isLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Payment FAQ</CardTitle>
-              <CardDescription>
-                Common questions about payments
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-1">When do I need to pay?</h4>
-                <p className="text-sm text-muted-foreground">
-                  Payment is due after your repair has been completed and before you collect your device.
-                </p>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-1">Can I get a refund?</h4>
-                <p className="text-sm text-muted-foreground">
-                  Refunds are available if we are unable to repair your device. Contact our support team for assistance.
-                </p>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-1">Is there a deposit required?</h4>
-                <p className="text-sm text-muted-foreground">
-                  No deposit is required for standard repairs. For specialty parts, a deposit may be requested.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+              ) : completedPayments && completedPayments.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {completedPayments.map((payment) => (
+                    <PaymentCard key={payment._id} payment={payment} />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardHeader className="text-center">
+                    <CardTitle>No completed payments</CardTitle>
+                    <CardDescription>
+                      You don't have any completed payments yet
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="pending" className="mt-0">
+              {isLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : pendingPayments && pendingPayments.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {pendingPayments.map((payment) => (
+                    <PaymentCard key={payment._id} payment={payment} />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardHeader className="text-center">
+                    <CardTitle>No pending payments</CardTitle>
+                    <CardDescription>
+                      You don't have any pending payments
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="refunded" className="mt-0">
+              {isLoading ? (
+                <div className="flex justify-center items-center p-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : refundedPayments && refundedPayments.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {refundedPayments.map((payment) => (
+                    <PaymentCard key={payment._id} payment={payment} />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardHeader className="text-center">
+                    <CardTitle>No refunded payments</CardTitle>
+                    <CardDescription>
+                      You don't have any refunded payments
+                    </CardDescription>
+                  </CardHeader>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
-      </main>
+      </div>
       
       <Footer />
     </div>
